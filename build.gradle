@@ -24,7 +24,8 @@ allprojects {
         maven { url 'http://maven.jdmomedia.com/repository/maven-public/' }
         maven {
             // https://github.com/panyigndaoz/test
-            url "https://raw.githubusercontent.com/kingbird201912/AdvSdk/master"
+//            url "https://raw.githubusercontent.com/kingbird201912/AdvSdk/master"
+            url "https://raw.githubusercontent.com/panyingdaoz/wowoo/master"
         }
     }
 }

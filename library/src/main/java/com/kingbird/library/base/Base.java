@@ -847,54 +847,6 @@ public class Base {
     }
 
     /**
-     * 纸巾数量请求
-     */
-    public static void tissueCountRequest() {
-        List<Parameter> deviceId = LitePal.findAll(Parameter.class);
-        for (Parameter deviceIds : deviceId) {
-            //2018-12-14修改 R.string.domain_name 为DOMAIN_NAME
-            String url = UPDATE_TISSUE_COUNT + deviceIds.getDeviceId();
-            e("更新路径", url);
-            HttpUtil.sendOkHttpRequest(url, new Callback() {
-                @Override
-                public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                    e("失败原因", e.toString());
-                }
-
-                @Override
-                public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                    int code = response.code();
-                    e("纸巾数量访问结果", code);
-                    String data = response.body().string();
-                    String urlDecoder = java.net.URLDecoder.decode(data, "UTF-8");
-                    e("数据", urlDecoder);
-                    try {
-                        JSONObject json = new JSONObject(urlDecoder);
-                        if (code == 200) {
-                            if (json.getBoolean("success")) {
-                                tissueCount = 0;
-                            } else {
-                                tissueCount++;
-                                if (tissueCount > 0 && tissueCount < 4) {
-                                    tissueCountRequest();
-                                }
-                            }
-                        } else {
-                            e("访问失败", urlDecoder);
-                            tissueCount++;
-                            if (tissueCount > 0 && tissueCount < 4) {
-                                tissueCountRequest();
-                            }
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-        }
-    }
-
-    /**
      * 写数据
      */
     private static void writeData(byte[] receive, String server, final Parameter parameters, String client, byte[] command, byte[] number) {
@@ -2345,6 +2297,60 @@ public class Base {
                     }
                 });
     }
+
+    /**
+     * 上传本地log文件
+     */
+    public static void postLog2(Context context, final String deviceId, String path, ArrayList<String> fileList) {
+        String fileName;
+        if (fileList.size() > 0) {
+            fileName = fileList.get(0);
+            String paths = path + "/" + fileName;
+            Plog.e("文件名：" + fileName);
+            String content = readFileContent(paths);
+            Plog.e("文本文件大小：" + content.length());
+
+            AppLog.DataBean app = new AppLog.DataBean();
+            app.setFilename(fileName);
+            app.setContent(content);
+
+            AppLog appLog = new AppLog();
+            appLog.setKey("kingbird2019");
+            appLog.setData(app);
+
+//        Plog.e("log文件: " + JSON.toJSONString(appLog));
+            MyOkHttp myOkHttp = new MyOkHttp();
+            myOkHttp.post()
+                    .url(APP_LOG)
+                    .jsonParams(JSON.toJSONString(appLog))
+                    .tag(context)
+                    .enqueue(new JsonResponseHandler() {
+                        @Override
+                        public void onSuccess(int statusCode, JSONObject response) {
+                            fileList.remove(0);
+                            postLog2(context, deviceId, path, fileList);
+                            Plog.e("doPostJSON log上传成功:" + response);
+                            byte[] dataLan = ProtocolDao.appLogAnswer(deviceId, true);
+                            ProtocolManager.getInstance().netDataAnser(dataLan);
+                        }
+
+                        @Override
+                        public void onSuccess(int statusCode, JSONArray response) {
+                            Plog.e("doPostJSON log上传成功:" + response);
+                        }
+
+                        @Override
+                        public void onFailure(int statusCode, String errorMsg) {
+                            Plog.e("doPostJSON log上传失败:" + errorMsg);
+                            byte[] dataLan = ProtocolDao.appLogAnswer(deviceId, false);
+                            ProtocolManager.getInstance().netDataAnser(dataLan);
+                        }
+                    });
+        } else {
+            Plog.e("文件集合为空");
+        }
+    }
+
 
     /**
      * 读取指定log文件数据
